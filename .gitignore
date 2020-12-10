@@ -1,0 +1,13 @@
+.idea
+.vscode
+.vs
+*.user
+**/*.min.css
+**/*.min.js
+**/*.js.css
+.DS_Store
+
+**/bin
+**/obj
+**/app
+**/node_modules
