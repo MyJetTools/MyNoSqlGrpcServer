@@ -1,0 +1,28 @@
+name: Release Client nuget
+
+on:
+  push:
+    tags: "Client-*"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.100
+    - name: Build
+      run: dotnet build --configuration Release
+    - name: Test
+      run: dotnet test --configuration Release      
+      
+    - name: Create the package - Reader
+      run: dotnet pack --configuration Release MyNoSqlGrpcServer.GrpcContracts/MyNoSqlGrpcServer.GrpcContracts.csproj /p:Version=${GITHUB_REF#refs/tags/Client-}
+
+    - name: Publish the package to GPR - Reader
+      run: dotnet nuget push MyNoSqlGrpcServer.GrpcContracts/bin/Release/*.nupkg -s "https://api.nuget.org/v3/index.json" -k ${{ secrets.NUGET_TOCKEN }}
+
