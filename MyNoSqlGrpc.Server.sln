@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyNoSqlGrpcServer.GrpcContr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "01.Grpc", "01.Grpc", "{B56EA896-7C77-46CE-8DCC-45E8FBA8C09D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyNoSqlGrpc.Writer", "MyNoSqlGrpc.Writer\MyNoSqlGrpc.Writer.csproj", "{2A4284CC-5FA7-48CE-AD3A-12A3F771BF96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyNoSqlGrpc.Reader", "MyNoSqlGrpc.Reader\MyNoSqlGrpc.Reader.csproj", "{48EEC7AE-5579-4826-8F4D-4B1C56134AB9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +30,14 @@ Global
 		{CF81ACD4-2C5D-46C7-B560-48B546DAA672}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CF81ACD4-2C5D-46C7-B560-48B546DAA672}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CF81ACD4-2C5D-46C7-B560-48B546DAA672}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A4284CC-5FA7-48CE-AD3A-12A3F771BF96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A4284CC-5FA7-48CE-AD3A-12A3F771BF96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A4284CC-5FA7-48CE-AD3A-12A3F771BF96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A4284CC-5FA7-48CE-AD3A-12A3F771BF96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48EEC7AE-5579-4826-8F4D-4B1C56134AB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48EEC7AE-5579-4826-8F4D-4B1C56134AB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48EEC7AE-5579-4826-8F4D-4B1C56134AB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48EEC7AE-5579-4826-8F4D-4B1C56134AB9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{CF81ACD4-2C5D-46C7-B560-48B546DAA672} = {B56EA896-7C77-46CE-8DCC-45E8FBA8C09D}
