@@ -17,4 +17,10 @@
         <PackageReference Include="NSwag.AspNetCore" Version="13.8.2" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Dockerfile">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>
