@@ -11,10 +11,13 @@ namespace MyNoSqlGrpc.Engine.Db
         public string PartitionKey { get; }
         public int Count => _rows.Count;
         
+        public DateTime LastExpirationAttempt { get; internal set; }
+        
         public DateTime LastAccessTime { get; private set; }
 
         public DbPartition(string partitionKey)
         {
+            LastExpirationAttempt = DateTime.UtcNow;
             PartitionKey = partitionKey;
         }
 

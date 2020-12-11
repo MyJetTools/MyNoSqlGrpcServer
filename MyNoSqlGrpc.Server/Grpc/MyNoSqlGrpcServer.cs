@@ -10,13 +10,13 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         public ValueTask CreateTableIfNotExistsAsync(CreateTableGrpcRequest reqContract)
         {
-            ServiceLocation.DbTablesList.CreateIfNotExists(reqContract.TableName.ToLower());
+            ServiceLocator.DbTablesList.CreateIfNotExists(reqContract.TableName.ToLower());
             return new ValueTask();
         }
 
         public ValueTask<GrpcResponse> InsertAsync(RowWithTableNameGrpcRequest request)
         {
-            var dbTable = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var dbTable = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             var result = new GrpcResponse
             {
@@ -40,7 +40,7 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         public ValueTask<GrpcResponse> InsertOrReplaceAsync(RowWithTableNameGrpcRequest request)
         {
-            var dbTable = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var dbTable = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             var result = new GrpcResponse
             {
@@ -63,7 +63,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         {
             var result = new GrpcResponse();
 
-            var dbTable =  ServiceLocation.DbTablesList.TryGetTable(dbRows.TableName);
+            var dbTable =  ServiceLocator.DbTablesList.TryGetTable(dbRows.TableName);
 
             if (dbTable == null)
             {
@@ -93,7 +93,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponseDbRow> ModifyAsync(RowWithTableNameGrpcRequest request)
         {
             var result = new GrpcResponseDbRow();
-            var table = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {
@@ -134,7 +134,7 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         public async IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request)
         {
-            var table = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             if (table == null) 
                 yield break;
@@ -156,7 +156,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponse> GcPartitionAsync(GcPartitionGrpcRequest request)
         {
             var result = new GrpcResponse();
-            var table = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {
@@ -177,7 +177,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponse> GcTableAsync(GcTableGrpcRequest request)
         {
             var result = new GrpcResponse();
-            var table = ServiceLocation.DbTablesList.TryGetTable(request.TableName);
+            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {

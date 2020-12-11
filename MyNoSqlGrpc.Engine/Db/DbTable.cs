@@ -142,6 +142,19 @@ namespace MyNoSqlGrpc.Engine.Db
             }
         }
 
+        public int GetPartitionsCount()
+        {
+            _lockSlim.EnterReadLock();
+            try
+            {
+                return _partitions.Count;
+            }
+            finally
+            {
+                _lockSlim.ExitReadLock();
+            }
+        }
+
         public void Gc(string partitionKey, int maxAmount)
         {
             _lockSlim.EnterWriteLock();

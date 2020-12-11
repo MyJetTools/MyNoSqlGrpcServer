@@ -10,6 +10,11 @@
 
     <ItemGroup>
       <PackageReference Include="AsyncAwaitUtils" Version="1.0.2" />
+      <PackageReference Include="protobuf-net.Grpc" Version="1.0.140" />
+      <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.140" />
+      <PackageReference Include="Grpc.Net.Client" Version="2.33.1" />
+      <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.16.0" />
+        <PackageReference Include="NSwag.AspNetCore" Version="13.8.2" />
     </ItemGroup>
 
 </Project>

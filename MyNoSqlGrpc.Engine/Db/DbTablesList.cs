@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MyNoSqlGrpc.Engine.Db
 {
@@ -6,24 +8,28 @@ namespace MyNoSqlGrpc.Engine.Db
     {
         private Dictionary<string, DbTable> _tables = new ();
 
+        private IReadOnlyList<DbTable> _tablesAsList = Array.Empty<DbTable>();
+
 
         private readonly object _lockObject = new();
 
 
-        public (bool created, DbTable table) CreateIfNotExists(string tableName)
+        public DbTable CreateIfNotExists(string tableName)
         {
 
             lock (_lockObject)
             {
                 if (_tables.TryGetValue(tableName, out var tbl))
-                    return (false, tbl);
+                    return tbl;
 
-                var result = new DbTable(tableName);
+                var newTable = new DbTable(tableName);
 
-                var newTables = new Dictionary<string, DbTable>(_tables) {{tableName, result}};
+                var newTables = new Dictionary<string, DbTable>(_tables) {{tableName, newTable}};
 
                 _tables = newTables;
-                return (true, result);
+
+                _tablesAsList = _tables.Values.ToList();
+                return newTable;
             }
         }
 
@@ -34,6 +40,12 @@ namespace MyNoSqlGrpc.Engine.Db
             return tables.TryGetValue(tableName, out var result) 
                 ? result 
                 : default;
+        }
+
+
+        public IReadOnlyList<DbTable> GetTables()
+        {
+            return _tablesAsList;
         }
     }
 }
