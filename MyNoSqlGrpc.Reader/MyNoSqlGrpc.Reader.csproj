@@ -2,6 +2,17 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
+        <LangVersion>9</LangVersion>
     </PropertyGroup>
 
+    <ItemGroup>
+        <PackageReference Include="AsyncAwaitUtils" Version="1.0.2" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.34.0" />
+        <PackageReference Include="protobuf-net.Grpc" Version="1.0.140" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\MyNoSqlGrpcServer.GrpcContracts\MyNoSqlGrpcServer.GrpcContracts.csproj" />
+    </ItemGroup>
+    
 </Project>

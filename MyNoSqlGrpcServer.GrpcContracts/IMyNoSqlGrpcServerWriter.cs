@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 namespace MyNoSqlGrpcServer.GrpcContracts
 {
     
-    [ServiceContract(Name = "MyNoSqlGrpcServer")]
-    public interface IMyNoSqlGrpcServer
+    [ServiceContract(Name = "MyNoSqlGrpcServerWriter")]
+    public interface IMyNoSqlGrpcServerWriter
     {
         
         [OperationContract(Action = "CreateTableIfNotExists")]
@@ -21,8 +21,8 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         [OperationContract(Action = "BulkInsertOrReplace")]
         ValueTask<GrpcResponse> BulkInsertOrReplaceAsync(RowsWithTableNameGrpcRequest dbRows);
         
-        [OperationContract(Action = "Modify")]
-        ValueTask<GrpcResponseDbRow> ModifyAsync(RowWithTableNameGrpcRequest request);
+        [OperationContract(Action = "Update")]
+        ValueTask<GrpcResponseDbRow> UpdateAsync(RowWithTableNameGrpcRequest request);
 
         [OperationContract(Action = "Get")]
         IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request);

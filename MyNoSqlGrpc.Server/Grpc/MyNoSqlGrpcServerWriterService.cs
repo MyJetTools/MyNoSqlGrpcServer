@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MyNoSqlGrpc.Server.Services;
 using MyNoSqlGrpcServer.GrpcContracts;
 
 namespace MyNoSqlGrpc.Server.Grpc
 {
-    public class MyNoSqlGrpcServer : IMyNoSqlGrpcServer
+    public class MyNoSqlGrpcServerWriterService : IMyNoSqlGrpcServerWriter
     {
 
         public ValueTask CreateTableIfNotExistsAsync(CreateTableGrpcRequest reqContract)
@@ -90,7 +91,7 @@ namespace MyNoSqlGrpc.Server.Grpc
             return new ValueTask<GrpcResponse>(result);
         }
 
-        public ValueTask<GrpcResponseDbRow> ModifyAsync(RowWithTableNameGrpcRequest request)
+        public ValueTask<GrpcResponseDbRow> UpdateAsync(RowWithTableNameGrpcRequest request)
         {
             var result = new GrpcResponseDbRow();
             var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
@@ -132,25 +133,26 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         }
 
-        public async IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request)
+        public IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request)
         {
             var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
 
-            if (table == null) 
-                yield break;
+            if (table == null)
+                return AsyncEnumerableResult<DbRowGrpcModel>.Empty();
+
             
             if (request.RowKey == null)
             {
-                foreach (var dbRow in table.Get(request.PartitionKey))
-                    yield return dbRow;
+                var result = table.Get(request.PartitionKey);
+                return new AsyncEnumerableResult<DbRowGrpcModel>(result);
             }
-            else
-            {
-                var dbRow = table.Get(request.PartitionKey, request.RowKey);
+                
 
-                if (dbRow != null)
-                    yield return dbRow;
-            }
+            var dbRow = table.Get(request.PartitionKey, request.RowKey);
+
+            return dbRow != null 
+                ? new AsyncEnumerableResult<DbRowGrpcModel>(new[] {dbRow}) 
+                : AsyncEnumerableResult<DbRowGrpcModel>.Empty();
         }
 
         public ValueTask<GrpcResponse> GcPartitionAsync(GcPartitionGrpcRequest request)

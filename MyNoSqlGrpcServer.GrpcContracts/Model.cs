@@ -24,4 +24,5 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         [DataMember(Order = 6)]
         public byte[] Content { get; set; }
     }
+    
 }

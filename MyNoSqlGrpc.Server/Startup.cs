@@ -38,7 +38,8 @@ namespace MyNoSqlGrpc.Server
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapGrpcService<Grpc.MyNoSqlGrpcServer>();
+                endpoints.MapGrpcService<Grpc.MyNoSqlGrpcServerWriterService>();
+                endpoints.MapGrpcService<Grpc.MyNoSqlGrpcServerReaderService>();
             });
         }
     }

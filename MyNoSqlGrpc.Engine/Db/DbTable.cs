@@ -31,7 +31,7 @@ namespace MyNoSqlGrpc.Engine.Db
 
         private readonly ReaderWriterLockSlim _lockSlim = new ();
 
-        private readonly Dictionary<string, DbPartition> _partitions = new ();
+        private readonly SortedDictionary<string, DbPartition> _partitions = new ();
 
 
         public void LockWithReadAccess(Action<IDbTableReadAccess> readAccess)
@@ -52,6 +52,14 @@ namespace MyNoSqlGrpc.Engine.Db
             _lockSlim.EnterReadLock();
             try
             {
+                if (partitionKey == null)
+                {
+                    foreach (var dbRow in _partitions.Values.SelectMany(partition => partition.Get()))
+                    {
+                        yield return dbRow;
+                    }
+                }
+                else
                 if (_partitions.TryGetValue(partitionKey, out var result))
                 {
                     foreach (var dbRow in result.Get())
@@ -89,6 +97,19 @@ namespace MyNoSqlGrpc.Engine.Db
             try
             {
                 writeAccess(this);
+            }
+            finally
+            {
+                _lockSlim.ExitWriteLock();
+            }
+        }
+        
+        public T LockWithWriteAccess<T>(Func<IDbTableWriteAccess, T> writeAccess)
+        {
+            _lockSlim.EnterWriteLock();
+            try
+            {
+                return writeAccess(this);
             }
             finally
             {

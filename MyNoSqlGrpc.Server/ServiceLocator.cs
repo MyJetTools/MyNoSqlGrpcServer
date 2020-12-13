@@ -1,4 +1,5 @@
 using MyNoSqlGrpc.Engine.Db;
+using MyNoSqlGrpc.Server.Services;
 
 namespace MyNoSqlGrpc.Server
 {
@@ -6,6 +7,9 @@ namespace MyNoSqlGrpc.Server
     {
 
         public static readonly DbTablesList DbTablesList = new ();
+
+        public static readonly MyNoSqlReaderSessionsList MyNoSqlReaderSessionsList = new ();
+        
 
     }
 }

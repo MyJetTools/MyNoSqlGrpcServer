@@ -45,7 +45,7 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         public string RowKey { get; set; }
         
         [DataMember(Order = 4)]
-        public int Take { get; set; }
+        public int Skip { get; set; }
         
         [DataMember(Order = 5)]
         public int Limit { get; set; }
