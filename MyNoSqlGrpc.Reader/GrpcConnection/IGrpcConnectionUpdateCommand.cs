@@ -53,4 +53,18 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
         public IReadOnlyList<DbRowGrpcModel> RowsToUpdate { get; }
     }
 
+
+    public struct DeleteRowsCommand : IGrpcConnectionUpdateCommand
+    {
+        public DeleteRowsCommand(string tableName, string partitionKey, IReadOnlyList<string> rowKeys)
+        {
+            TableName = tableName;
+            PartitionKey = partitionKey;
+            RowKeys = rowKeys;
+        }
+        public string TableName { get; }
+        public string PartitionKey { get; }
+        public IReadOnlyList<string> RowKeys { get; }
+    }
+
 }

@@ -1,31 +1,35 @@
 using System;
 using System.Threading.Tasks;
-using MyNoSqlGrpc.Server.Services.SyncQueue;
+using MyNoSqlGrpc.Engine.ServerSyncEvents;
 
-namespace MyNoSqlGrpc.Server.Services
+namespace MyNoSqlGrpc.Engine.ServerSessions
 {
     public class AwaitingUpdateEvent
     {
 
-        private TaskCompletionSource<ISyncTableEvent> _event;
+        private TaskCompletionSource<ISyncChangeEvent> _event;
         private DateTime DateOfInitialization { get; set; }
-
 
         public bool Initialized => _event != null;
 
         public TimeSpan HowLong => DateTime.UtcNow - DateOfInitialization;
         
-        public Task<ISyncTableEvent> InitAsync()
+        public Task<ISyncChangeEvent> InitAsync()
         {
             DateOfInitialization = DateTime.UtcNow;
-            _event = new TaskCompletionSource<ISyncTableEvent>();
+            _event = new TaskCompletionSource<ISyncChangeEvent>();
             return _event.Task;
         }
 
-        public void SetResult(ISyncTableEvent result)
+        public void SetResult(ISyncChangeEvent result)
         {
             _event.SetResult(result);
             _event = null;
+        }
+
+        public void SetExpired()
+        {
+            _event.SetException(new TimeoutException("Session is expired"));
         }
     }
 }

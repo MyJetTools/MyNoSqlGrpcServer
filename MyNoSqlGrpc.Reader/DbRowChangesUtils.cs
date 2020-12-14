@@ -6,9 +6,14 @@ namespace MyNoSqlGrpc.Reader
     public static class DbRowChangesUtils
     {
 
-        //ToDo - UnitTestIt
         public static IEnumerable<(RowOperationResult, T)> FindTheDifference<T>(this ReaderPartition<T> before, ReaderPartition<T> now)
         {
+            if (before == null)
+            {
+                foreach (var nowRow in now.Get())
+                    yield return (RowOperationResult.Insert, nowRow.PayLoad);
+            }
+            else
             if (before.Count == 0)
             {
                 foreach (var nowRow in now.Get())

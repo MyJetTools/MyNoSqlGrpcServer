@@ -13,7 +13,7 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         ValueTask<GreetingGrpcResponse> GreetingAsync(GreetingGrpcRequest request, CancellationToken token = default);
         
         [OperationContract(Action = "Subscribe")]
-        ValueTask SubscribeAsync(SubscribeGrpcRequest request, CancellationToken token = default);
+        IAsyncEnumerable<DbRowGrpcModel> SubscribeAsync(SubscribeGrpcRequest request, CancellationToken token = default);
 
         [OperationContract(Action = "GetUpdates")]
         ValueTask<UpdatesGrpcResponse> GetUpdatesAsync(GetUpdatesGrpcRequest request, CancellationToken token = default);

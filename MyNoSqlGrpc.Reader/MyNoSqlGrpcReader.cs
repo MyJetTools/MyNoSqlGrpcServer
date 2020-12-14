@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using AsyncAwaitUtils;
 using MyNoSqlGrpc.Reader.Cache;
@@ -28,7 +27,7 @@ namespace MyNoSqlGrpc.Reader
 
         private Func<ReadOnlyMemory<byte>, T> _deserializer;
 
-        public MyNoSqlGrpcReader<T> PlugSerializerDeserializer(
+        public MyNoSqlGrpcReader<T> PlugDeserializer(
             Func<ReadOnlyMemory<byte>, T> deserializer)
         {
             _deserializer = deserializer;
@@ -94,20 +93,29 @@ namespace MyNoSqlGrpc.Reader
         
         private async Task<IEnumerable<T>> InitAndGetAsync(string partitionKey)
         {
-            var cancellationTokenSource = new CancellationTokenSource();
             var result = await InitFromServerAsync(partitionKey);
             return result.Values.Select(itm => itm.PayLoad);
         }
 
         private async Task<T> InitAndGetAsync(string partitionKey, string rowKey)
         {
-            var partition = await InitFromServerAsync(partitionKey);
-            return partition.TryGetValue(rowKey, out var result) ? result.PayLoad : default;
+            try
+            {
+                var partition = await InitFromServerAsync(partitionKey);
+                return partition.TryGetValue(rowKey, out var result) ? result.PayLoad : default;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
         }
         
         private async Task<IReadOnlyDictionary<string, ReaderRow<T>>> InitFromServerAsync(string partitionKey)
         {
-            var dbRows = await _connection.DownloadPartitionAsync(_tableName, partitionKey).ToListAsync();
+            await _connection.AwaitUntilConnected();
+            var dbRows = await _connection.SubscribeAsync(_tableName, partitionKey).ToListAsync();
             return ResetPartition(partitionKey, dbRows);
         }
         
@@ -124,6 +132,10 @@ namespace MyNoSqlGrpc.Reader
                 case UpdateRowsCommand updateRowsCommand:
                     UpdateDbRows(updateRowsCommand.RowsToUpdate);
                     break;
+                case DeleteRowsCommand deleteRowsCommand:
+                    DeleteRows(deleteRowsCommand);
+                    break;
+                    
             }
         }
 
@@ -182,6 +194,23 @@ namespace MyNoSqlGrpc.Reader
                         var result = partition.InsertOrReplace(dbRow);
                         InvokeEvent(result, dbRow.PayLoad);
                     }
+                }
+
+            });
+        }
+
+        private void DeleteRows(DeleteRowsCommand deleteRowsCommand)
+        {
+            _dbTable.LockWithWriteAccess(writeAccess =>
+            {
+
+                foreach (var rowKey in deleteRowsCommand.RowKeys)
+                {
+                    var partition = writeAccess.GetOrCreatePartition(deleteRowsCommand.PartitionKey);
+
+                    var dbRow = partition.DeleteRow(rowKey);
+                    if (dbRow != null)
+                        InvokeEvent(RowOperationResult.Delete, dbRow.PayLoad);
                 }
 
             });

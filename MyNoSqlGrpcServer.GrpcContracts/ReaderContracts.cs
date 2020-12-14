@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace MyNoSqlGrpcServer.GrpcContracts
@@ -9,8 +10,11 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         [DataMember(Order = 1)]
         public string AppName { get; set; }
         
-        [DataMember(Order = 4)]
+        [DataMember(Order = 2)]
         public string ConnectionId { get; set; }
+        
+        [DataMember(Order = 3)]
+        public string PingTimeout { get; set; }
     }
 
     
@@ -42,6 +46,15 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         public string ConnectionId { get; set; }
     }
 
+    [DataContract]
+    public class DeleteRowGrpcContract
+    {
+        [DataMember(Order = 1)]
+        public string PartitionKey { get; set; }
+        [DataMember(Order = 2)]
+        public IReadOnlyList<string> RowKeys { get; set; }
+    }
+
 
     [DataContract]
     public class UpdatesGrpcResponse
@@ -57,10 +70,13 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         public string ResetPartitionKey { get; set; }
         
         [DataMember(Order = 4)]
-        public DbRowGrpcModel[] DbRows { get; set; }
+        public IReadOnlyList<DbRowGrpcModel> DbRows { get; set; }
         
         [DataMember(Order = 5)]
-        public string DownloadRows { get; set; } 
+        public string DownloadRows { get; set; }
+        
+        [DataMember(Order = 6)]
+        public DeleteRowGrpcContract DeleteRows { get; set; } 
     }
     
     

@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Grpc.Net.Client;
 using MyNoSqlGrpcServer.GrpcContracts;
+using ProtoBuf.Grpc.Client;
 
 namespace MyNoSqlGrpc.Reader.GrpcConnection
 {
-    
-    
+
+
     public class MyNoSqlGrpcReaderConnection
     {
         private readonly TimeSpan _pingTimeSpan;
@@ -15,7 +17,7 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
         public IMyNoSqlGrpcServerReader MyNoSqlGrpcServerReader { get; }
         public string ConnectionId { get; } = Guid.NewGuid().ToString();
         public string AppName { get; }
-        
+
         public MyNoSqlGrpcReaderConnection(IMyNoSqlGrpcServerReader myNoSqlGrpcServerReader, string appName, TimeSpan pingTimeSpan)
         {
             _pingTimeSpan = pingTimeSpan;
@@ -25,8 +27,20 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
             MyNoSqlGrpcServerReader = myNoSqlGrpcServerReader;
         }
 
+        public static MyNoSqlGrpcReaderConnection Create(string grpcUrl, string appName, bool useSsl, TimeSpan pingTimeSpan)
+        {
+            if (!useSsl)
+                GrpcClientFactory.AllowUnencryptedHttp2 = true;
 
-        private readonly Dictionary<string, List<Action<IGrpcConnectionUpdateCommand>>> _updateCommand = new ();
+            var result = GrpcChannel
+                .ForAddress(grpcUrl)
+                .CreateGrpcService<IMyNoSqlGrpcServerReader>();
+
+            return new MyNoSqlGrpcReaderConnection(result, appName, pingTimeSpan);
+        }
+
+
+        private readonly Dictionary<string, List<Action<IGrpcConnectionUpdateCommand>>> _updateCommand = new();
 
         public void SubscribeToUpdateEvent(string tableName, Action<IGrpcConnectionUpdateCommand> updateCommand)
         {
@@ -43,8 +57,8 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
         }
 
 
-        private readonly object _lockObject = new ();
-        private readonly Dictionary<string, List<string>> _partitions = new ();
+        private readonly object _lockObject = new();
+        private readonly Dictionary<string, List<string>> _partitions = new();
 
         public CancellationTokenSource CancellationTokenSource { get; private set; }
 
@@ -55,7 +69,17 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
                 return new Dictionary<string, List<string>>(_partitions);
             }
         }
-        
+
+
+
+        private TaskCompletionSource<bool> _taskCompletionConnected = new();
+
+        public Task AwaitUntilConnected()
+        {
+            return _taskCompletionConnected.Task;
+        }
+
+
         private async Task ConnectionLoopAsync()
         {
 
@@ -63,23 +87,23 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
             {
                 try
                 {
-                  
-                    CancellationTokenSource = new CancellationTokenSource();
+
                     await Task.Delay(500);
-                    
                     LastReceiveTime = DateTime.UtcNow;
-                    
-                    var result = await MyNoSqlGrpcServerReader.GreetingAsync(new GreetingGrpcRequest
+                    CancellationTokenSource = new CancellationTokenSource();
+
+
+                    await MyNoSqlGrpcServerReader.GreetingAsync(new GreetingGrpcRequest
                     {
                         AppName = AppName,
                         ConnectionId = ConnectionId
                     }, CancellationTokenSource.Token);
                     LastReceiveTime = DateTime.UtcNow;
+                    _taskCompletionConnected.SetResult(true);
 
-                    
-                    if (!result.WeContinueSession)
-                        await this.DownloadPartitionsIfSessionIsNew();
-             
+
+                    await this.DownloadPartitionsIfSessionIsNew();
+
                     await EventsLoopAsync();
 
                 }
@@ -87,6 +111,10 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
                 {
                     //ToDo - Made it Loggable
                     Console.WriteLine(e);
+                }
+                finally
+                {
+                    _taskCompletionConnected = new TaskCompletionSource<bool>();
                 }
             }
 
@@ -100,36 +128,46 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
             };
 
             var deadConnectionTask = DeadConnectionDetectionAsync();
-            
-            while (CancellationTokenSource.IsCancellationRequested)
+
+            Console.WriteLine("Connected...");
+
+            while (!CancellationTokenSource.IsCancellationRequested)
             {
                 var update = await MyNoSqlGrpcServerReader
                     .GetUpdatesAsync(grpcRequest, CancellationTokenSource.Token);
-                
+
+                LastReceiveTime = DateTime.UtcNow;
+
                 var command = await this.HandleNewDataAsync(update);
-                    
+
                 if (command is SkipItUpdateResult)
                     continue;
-                
+
                 InvokeUpdateEvent(command);
             }
 
             await deadConnectionTask;
 
         }
-        
+
         public DateTime LastReceiveTime { get; internal set; } = DateTime.UtcNow;
 
         private async Task DeadConnectionDetectionAsync()
         {
-            while (DateTime.UtcNow - LastReceiveTime > _disconnectTimeSpan)
+
+            Console.WriteLine("Disconnect delay: " + _disconnectTimeSpan);
+
+
+            while (DateTime.UtcNow - LastReceiveTime < _disconnectTimeSpan)
             {
                 await Task.Delay(_pingTimeSpan);
             }
-            
+
+            Console.WriteLine("GRPC Connection is dead. Reconnecting...");
+
             CancellationTokenSource.Cancel();
         }
-        
+
         public bool Started { get; private set; }
 
         public void Start()
@@ -141,7 +179,7 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
                     Started = true;
                     Task.Run(ConnectionLoopAsync);
                 }
-                    
+
                 Started = true;
             }
         }

@@ -23,6 +23,9 @@ namespace MyNoSqlGrpcServer.GrpcContracts
         
         [OperationContract(Action = "Update")]
         ValueTask<GrpcResponseDbRow> UpdateAsync(RowWithTableNameGrpcRequest request);
+        
+        [OperationContract(Action = "Delete")]
+        ValueTask DeleteAsync(IAsyncEnumerable<DeleteEntityGrpcContract> request);
 
         [OperationContract(Action = "Get")]
         IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request);

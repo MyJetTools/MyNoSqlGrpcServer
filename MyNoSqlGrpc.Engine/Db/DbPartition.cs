@@ -73,20 +73,37 @@ namespace MyNoSqlGrpc.Engine.Db
             else
                 _rows.Add(dbRow.RowKey, dbRow);
         }
-
-        public void Gc(int maxAmount)
+        
+        public void InsertOrReplace(IEnumerable<DbRowGrpcModel> dbRows)
         {
-            if (Count <= maxAmount)
-                return;
-
-            var itemsByLastAccess = _rows.Values.OrderBy(itm => itm.LastAccessTime).ToList();
-
-            var i = 0;
-            while (Count> maxAmount)
+            LastAccessTime = DateTime.UtcNow;
+            foreach (var dbRow in dbRows)
             {
-                _rows.Remove(itemsByLastAccess[i].RowKey);
-                i++;
+                dbRow.TimeStamp = LastAccessTime;
+                dbRow.LastAccessTime = LastAccessTime;
+                if (_rows.ContainsKey(dbRow.RowKey))
+                    _rows[dbRow.RowKey] = dbRow;
+                else
+                    _rows.Add(dbRow.RowKey, dbRow);
             }
+    
+        }
+
+        public IEnumerable<DbRowGrpcModel> Gc(int maxAmount)
+        {
+            if (Count > maxAmount)
+            {
+                var itemsByLastAccess = _rows.Values.OrderBy(itm => itm.LastAccessTime).ToList();
+
+                var i = 0;
+                while (Count> maxAmount)
+                {
+                    _rows.Remove(itemsByLastAccess[i].RowKey);
+                    yield return itemsByLastAccess[i];
+                    i++;
+                }   
+            }
+   
         }
     }
 }

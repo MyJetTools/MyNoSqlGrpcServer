@@ -1,12 +1,12 @@
-using MyNoSqlGrpc.Server.Services.SyncQueue;
+using MyNoSqlGrpc.Engine.ServerSyncEvents;
 using MyNoSqlGrpcServer.GrpcContracts;
 
-namespace MyNoSqlGrpc.Server.Services
+namespace MyNoSqlGrpc.Engine.ServerSessions
 {
     public static class ReaderDataToSyncUtils
     {
 
-        public static UpdatesGrpcResponse HandleDataToSync(this MyNoSqlReaderSession session, ISyncTableEvent dataToSync, int maxPayloadSize)
+        public static UpdatesGrpcResponse HandleDataToSync(this MyNoSqlReaderSession session, ISyncChangeEvent dataToSync, int maxPayloadSize)
         {
             var result = new UpdatesGrpcResponse();
 
@@ -34,10 +34,22 @@ namespace MyNoSqlGrpc.Server.Services
                     return result;
                 }
 
-                result.DownloadRows = session.AwaitPayload(syncRowEvent.DbRows);
+                result.DownloadRows = session.RowsToSync.AwaitPayload(syncRowEvent.DbRows);
                 return result;
             }
 
+            if (dataToSync is DeleteDbRowEvent deleteDbRowEvent)
+            {
+                result.TableName = deleteDbRowEvent.TableName;
+                result.DeleteRows = 
+                    new DeleteRowGrpcContract
+                    {
+                        PartitionKey = deleteDbRowEvent.PartitionKey,
+                        RowKeys = deleteDbRowEvent.RowKeys
+                    };
+                return result;
+            }
+            
             return result;
         }
         

@@ -17,6 +17,12 @@ namespace MyNoSqlGrpc.Engine.Db
         DbPartition GetOrCreatePartition(string partitionKey);
 
         DbPartition TryGetPartition(string partitionKey);
+
+        int PartitionsCount();
+
+        IEnumerable<DbPartition> GetPartitions();
+
+        void RemovePartition(string partitionKey);
     }
     
     public class DbTable : IDbTableReadAccess, IDbTableWriteAccess
@@ -40,6 +46,19 @@ namespace MyNoSqlGrpc.Engine.Db
             try
             {
                 readAccess(this);
+            }
+            finally
+            {
+                _lockSlim.ExitReadLock();
+            }
+        }
+        
+        public T LockWithReadAccess<T>(Func<IDbTableReadAccess, T> readAccess)
+        {
+            _lockSlim.EnterReadLock();
+            try
+            {
+               return readAccess(this);
             }
             finally
             {
@@ -135,7 +154,23 @@ namespace MyNoSqlGrpc.Engine.Db
                 ? result 
                 : null;
         }
-        
+
+        int IDbTableWriteAccess.PartitionsCount()
+        {
+            return _partitions.Count;
+        }
+
+        public IEnumerable<DbPartition> GetPartitions()
+        {
+            return _partitions.Values;
+        }
+
+        public void RemovePartition(string partitionKey)
+        {
+            if (_partitions.ContainsKey(partitionKey))
+                _partitions.Remove(partitionKey);
+        }
+
         DbPartition IDbTableWriteAccess.TryGetPartition(string partitionKey)
         {
             return _partitions.TryGetValue(partitionKey, out var result) 
@@ -176,23 +211,7 @@ namespace MyNoSqlGrpc.Engine.Db
             }
         }
 
-        public void Gc(string partitionKey, int maxAmount)
-        {
-            _lockSlim.EnterWriteLock();
-
-            try
-            {
-                if (_partitions.TryGetValue(partitionKey, out var dbPartition))
-                    dbPartition.Gc(maxAmount);
-            }
-            finally
-            {
-                _lockSlim.ExitWriteLock();
-            }
-        }
-
-
-        private bool NeedGcPartitions(int maxPartitions)
+        public bool WeHavePartitionsToGc(int maxPartitions)
         {
             _lockSlim.EnterReadLock();
             try
@@ -205,33 +224,5 @@ namespace MyNoSqlGrpc.Engine.Db
             }
         }
         
-        public void Gc(int maxAmount)
-        {
-            
-            if (!NeedGcPartitions(maxAmount))
-                return;
-            
-            _lockSlim.EnterWriteLock();
-            try
-            {
-                
-                if (_partitions.Count > maxAmount)
-                    return;
-                
-                var itemsByLastAccess = _partitions.Values.OrderBy(itm => itm.LastAccessTime).ToList();
-
-                var i = 0;
-                while (_partitions.Count> maxAmount)
-                {
-                    _partitions.Remove(itemsByLastAccess[i].PartitionKey);
-                    i++;
-                }
-                
-            }
-            finally
-            {
-                _lockSlim.ExitWriteLock();
-            }
-        }
     }
 }

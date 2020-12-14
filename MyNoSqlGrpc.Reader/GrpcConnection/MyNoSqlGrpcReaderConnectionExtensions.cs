@@ -8,10 +8,11 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
 {
     public static class MyNoSqlGrpcReaderConnectionExtensions
     {
-        
-        public static async IAsyncEnumerable<DbRowGrpcModel> SubscribeAsync(this MyNoSqlGrpcReaderConnection connection, 
+        public static IAsyncEnumerable<DbRowGrpcModel> SubscribeAsync(this MyNoSqlGrpcReaderConnection connection, 
             string tableName, string partitionKey)
         {
+            
+            
             var grpcRequest = new SubscribeGrpcRequest
             {
                 ConnectionId = connection.ConnectionId,
@@ -19,10 +20,7 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
                 PartitionKey = partitionKey
             };
 
-            await connection.MyNoSqlGrpcServerReader.SubscribeAsync(grpcRequest);
-
-            await foreach (var itm in connection.DownloadPartitionAsync(tableName, partitionKey))
-                yield return itm;
+            return connection.MyNoSqlGrpcServerReader.SubscribeAsync(grpcRequest);
         }
         
         public static IAsyncEnumerable<DbRowGrpcModel> DownloadPartitionAsync(this MyNoSqlGrpcReaderConnection connection,
@@ -59,12 +57,20 @@ namespace MyNoSqlGrpc.Reader.GrpcConnection
 
             if (update.ClearTable)
                 return new ClearTableUpdateResult(update.TableName);
+            
+            if (update.DeleteRows != null)
+            {
+                return new DeleteRowsCommand(update.TableName, update.DeleteRows.PartitionKey,
+                    update.DeleteRows.RowKeys);
+            }
 
             if (update.ResetPartitionKey != null)
             {
                 var dbRows = await connection.DownloadPartitionAsync(update.TableName, update.ResetPartitionKey).ToListAsync();
                 return new ResetPartitionUpdateCommand(update.TableName, update.ResetPartitionKey, dbRows);
             }
+
+
 
             if (update.DownloadRows != null)
             {

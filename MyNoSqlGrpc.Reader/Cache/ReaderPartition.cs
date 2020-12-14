@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MyNoSqlGrpcServer.GrpcContracts;
 
 namespace MyNoSqlGrpc.Reader.Cache
 {
@@ -51,6 +52,10 @@ namespace MyNoSqlGrpc.Reader.Cache
             return RowOperationResult.Insert;
             
         }
-        
+
+        public ReaderRow<T> DeleteRow(string rowKey)
+        {
+            return _items.Remove(rowKey, out var result) ? result : null;
+        }
     }
 }

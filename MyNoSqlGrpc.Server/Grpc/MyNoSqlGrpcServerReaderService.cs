@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MyNoSqlGrpc.Engine.ServerSessions;
 using MyNoSqlGrpc.Server.Services;
 using MyNoSqlGrpcServer.GrpcContracts;
 
@@ -19,16 +20,17 @@ namespace MyNoSqlGrpc.Server.Grpc
         
         public ValueTask<GreetingGrpcResponse> GreetingAsync(GreetingGrpcRequest request, CancellationToken token = default)
         {
+            var pingTimeout = request.PingTimeout == null ? TimeSpan.FromSeconds(3) : TimeSpan.Parse(request.PingTimeout);
             var result = new GreetingGrpcResponse
             {
                 WeContinueSession =
-                    ServiceLocator.MyNoSqlReaderSessionsList.RegisterNewSession(request.ConnectionId, request.AppName)
+                    ServiceLocator.MyNoSqlReaderSessionsList.RegisterNewSession(request.ConnectionId, request.AppName, pingTimeout)
             };
 
             return new ValueTask<GreetingGrpcResponse>(result);
         }
 
-        public ValueTask SubscribeAsync(SubscribeGrpcRequest request, CancellationToken token = default)
+        public IAsyncEnumerable<DbRowGrpcModel> SubscribeAsync(SubscribeGrpcRequest request, CancellationToken token = default)
         {
             var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
             if (session == null)
@@ -37,10 +39,22 @@ namespace MyNoSqlGrpc.Server.Grpc
             var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
             if (table == null)
                 throw new Exception($"Table {request.TableName} is not found");
-            
-            session.SubscribeToPartition(request.TableName, request.PartitionKey);
 
-            return new ValueTask();
+            
+            var result = table.LockWithReadAccess(readAccess =>
+            {
+                session.SubscribeToPartition(request.TableName, request.PartitionKey);
+
+                var partition = readAccess.TryGetPartition(request.PartitionKey);
+
+                if (partition == null)
+                    return (IReadOnlyList<DbRowGrpcModel>) Array.Empty<DbRowGrpcModel>();
+
+                return partition.Get().ToList();
+            });
+            
+
+            return new AsyncEnumerableResult<DbRowGrpcModel>(result);
         }
         
         private static async Task<UpdatesGrpcResponse> AwaitRequest(MyNoSqlReaderSession session)
@@ -55,7 +69,7 @@ namespace MyNoSqlGrpc.Server.Grpc
 
             if (session == null)
                 throw GetSessionExpiredException(request.ConnectionId);
-
+            
             var dataToSync = session.GetDataToSync();
 
             return dataToSync == null 
@@ -94,8 +108,8 @@ namespace MyNoSqlGrpc.Server.Grpc
             var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
             if (session == null)
                 throw GetSessionExpiredException(request.ConnectionId);
-
-            var dbRows = session.GetRowsToSync(request.SnapshotId);
+            
+            var dbRows = session.RowsToSync.Get(request.SnapshotId);
 
             return new AsyncEnumerableResult<DbRowGrpcModel>(dbRows);
         }

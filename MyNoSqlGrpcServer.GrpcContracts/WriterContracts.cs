@@ -89,6 +89,17 @@ namespace MyNoSqlGrpcServer.GrpcContracts
     }
     
     [DataContract]
+    public class DeleteEntityGrpcContract
+    {
+        [DataMember(Order = 1)]
+        public string TableName { get; set; }
+        [DataMember(Order = 2)]
+        public string PartitionKey { get; set; }
+        [DataMember(Order = 3)]
+        public string RowKey { get; set; }
+    }
+    
+    [DataContract]
     public class RowsWithTableNameGrpcRequest
     {
         [DataMember(Order = 1)]

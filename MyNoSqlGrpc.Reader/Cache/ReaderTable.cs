@@ -29,68 +29,35 @@ namespace MyNoSqlGrpc.Reader.Cache
 
         ReaderPartition<T> ITableReadAccess<T>.TryGetPartition(string partitionKey)
         {
-            _lockSlim.EnterReadLock();
-            try
-            {
-                if (_partitions.TryGetValue(partitionKey, out var partition))
-                    return partition;
-
-                return null;
-            }
-            finally
-            {
-                _lockSlim.ExitReadLock();
-            }
+            return _partitions.TryGetValue(partitionKey, out var partition) 
+                ? partition 
+                : null;
         }
 
         ReaderPartition<T> ITableWriteAccess<T>.GetOrCreatePartition(string partitionKey)
         {
-            _lockSlim.EnterWriteLock();
-            try
-            {
-                if (_partitions.TryGetValue(partitionKey, out var partition))
-                    return partition;
-
-                partition = new ReaderPartition<T>();
-                _partitions.Add(partitionKey, partition);
+            if (_partitions.TryGetValue(partitionKey, out var partition))
                 return partition;
-            }
-            finally
-            {
-                _lockSlim.ExitWriteLock();
-            }
+
+            partition = new ReaderPartition<T>();
+            _partitions.Add(partitionKey, partition);
+            return partition;
         }
 
         ReaderPartition<T> ITableWriteAccess<T>.ClearPartition(string partitionKey)
         {
-            _lockSlim.EnterWriteLock();
-            try
-            {
-                if (!_partitions.TryGetValue(partitionKey, out var partition))
-                    return null;
+            if (!_partitions.TryGetValue(partitionKey, out var partition))
+                return null;
 
-                _partitions.Remove(partitionKey);
-                return partition;
-            }
-            finally
-            {
-                _lockSlim.ExitWriteLock();
-            }
+            _partitions.Remove(partitionKey);
+            return partition;
         }
 
         Dictionary<string, ReaderPartition<T>> ITableWriteAccess<T>.Clear()
         {
-            _lockSlim.EnterWriteLock();
-            try
-            {
-                var result = _partitions;
-                _partitions = new Dictionary<string, ReaderPartition<T>>();
-                return result;
-            }
-            finally
-            {
-                _lockSlim.ExitWriteLock();
-            }
+            var result = _partitions;
+            _partitions = new Dictionary<string, ReaderPartition<T>>();
+            return result;
         }
 
         public TOut LockWithReadAccess<TOut>(Func<ITableReadAccess<T>, TOut> readAccess)
