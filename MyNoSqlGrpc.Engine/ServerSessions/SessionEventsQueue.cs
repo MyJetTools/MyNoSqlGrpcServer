@@ -3,7 +3,6 @@ using MyNoSqlGrpc.Engine.ServerSyncEvents;
 
 namespace MyNoSqlGrpc.Engine.ServerSessions
 {
-    //ToDo - when we deliver the message - we have to Deliver it with the MessageId
     public class SessionEventsQueue
     {
         private readonly Queue<ISyncChangeEvent> _syncQueue = new();

@@ -8,7 +8,7 @@ namespace MyNoSqlGrpc.Engine
 {
     public interface IMyNoSqlGrpcEngineSettings
     {
-        public string SessionExpiration { get; set; }
+        public string SessionExpiration { get; }
     }
     
     public static class BindEngineServices
