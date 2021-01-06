@@ -1,14 +1,17 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using MyNoSqlGrpc.Engine.Api;
 using MyNoSqlGrpc.Engine.Db;
 using MyNoSqlGrpc.Engine.ServerSessions;
 using MyNoSqlGrpc.Engine.ServerSyncEvents;
+using MyNoSqlGrpcServer.GrpcContracts;
 
 namespace MyNoSqlGrpc.Engine
 {
     public interface IMyNoSqlGrpcEngineSettings
     {
-        public string SessionExpiration { get; }
+        public TimeSpan SessionExpiration { get; }
+        public int MaxPayloadSize { get; }
     }
     
     public static class BindEngineServices
@@ -18,10 +21,14 @@ namespace MyNoSqlGrpc.Engine
         {
             serviceCollection.AddSingleton<DbTablesList>();
 
-            var sessionExpirationTimeOut = TimeSpan.Parse(settings.SessionExpiration);
-            serviceCollection.AddSingleton(new MyNoSqlReaderSessionsList(sessionExpirationTimeOut));
+            serviceCollection.AddSingleton(settings);
+            
+            serviceCollection.AddSingleton<MyNoSqlReaderSessionsList>();
             serviceCollection.AddSingleton(new SyncEventsQueue());
             serviceCollection.AddSingleton<SyncEventsPusher>();
+            
+            serviceCollection.AddSingleton<IMyNoSqlGrpcServerWriter, MyNoSqlGrpcServerWriter>();
+            serviceCollection.AddSingleton<IMyNoSqlGrpcServerReader, MyNoSqlGrpcServerReader>();
         }
         
     }

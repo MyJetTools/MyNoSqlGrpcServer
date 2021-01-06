@@ -3,20 +3,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MyNoSqlGrpc.Engine.Db;
 using MyNoSqlGrpc.Engine.ServerSessions;
-using MyNoSqlGrpc.Server.Services;
 using MyNoSqlGrpcServer.GrpcContracts;
 
-namespace MyNoSqlGrpc.Server.Grpc
+namespace MyNoSqlGrpc.Engine.Api
 {
-    public class MyNoSqlGrpcServerReaderService : IMyNoSqlGrpcServerReader
+    public class MyNoSqlGrpcServerReader : IMyNoSqlGrpcServerReader
     {
-        private static Exception GetSessionExpiredException(string connection)
+        private readonly MyNoSqlReaderSessionsList _sessionsList;
+        private readonly DbTablesList _dbTablesList;
+        private readonly IMyNoSqlGrpcEngineSettings _settings;
+
+        public MyNoSqlGrpcServerReader(MyNoSqlReaderSessionsList sessionsList, DbTablesList dbTablesList, IMyNoSqlGrpcEngineSettings settings)
         {
-            return new ($"Session {connection} is expired");
+            _sessionsList = sessionsList;
+            _dbTablesList = dbTablesList;
+            _settings = settings;
         }
-        
-        public static int MaxPayloadSize { get; set; }
         
         public ValueTask<GreetingGrpcResponse> GreetingAsync(GreetingGrpcRequest request, CancellationToken token = default)
         {
@@ -24,7 +28,7 @@ namespace MyNoSqlGrpc.Server.Grpc
             var result = new GreetingGrpcResponse
             {
                 WeContinueSession =
-                    ServiceLocator.MyNoSqlReaderSessionsList.RegisterNewSession(request.ConnectionId, request.AppName, pingTimeout)
+                    _sessionsList.RegisterNewSession(request.ConnectionId, request.AppName, pingTimeout)
             };
 
             return new ValueTask<GreetingGrpcResponse>(result);
@@ -32,14 +36,9 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         public IAsyncEnumerable<DbRowGrpcModel> SubscribeAsync(SubscribeGrpcRequest request, CancellationToken token = default)
         {
-            var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
-            if (session == null)
-                throw GetSessionExpiredException(request.ConnectionId);
+            var session = _sessionsList.GetSession(request.ConnectionId);
 
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
-            if (table == null)
-                throw new Exception($"Table {request.TableName} is not found");
-
+            var table = _dbTablesList.GetTable(request.TableName);
             
             var result = table.LockWithReadAccess(readAccess =>
             {
@@ -57,36 +56,28 @@ namespace MyNoSqlGrpc.Server.Grpc
             return new AsyncEnumerableResult<DbRowGrpcModel>(result);
         }
         
-        private static async Task<UpdatesGrpcResponse> AwaitRequest(MyNoSqlReaderSession session)
+        private async Task<UpdatesGrpcResponse> AwaitRequest(MyNoSqlReaderSession session)
         {
             var result = await session.IssueAwaitingUpdateEvent();
-            return session.HandleDataToSync(result, MaxPayloadSize);
+            return session.HandleDataToSync(result, _settings.MaxPayloadSize);
         }
 
         public ValueTask<UpdatesGrpcResponse> GetUpdatesAsync(GetUpdatesGrpcRequest request, CancellationToken token = default)
         {
-            var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
+            var session = _sessionsList.GetSession(request.ConnectionId);
 
-            if (session == null)
-                throw GetSessionExpiredException(request.ConnectionId);
-            
             var dataToSync = session.GetDataToSync();
 
             return dataToSync == null 
                 ? new ValueTask<UpdatesGrpcResponse>(AwaitRequest(session)) 
-                : new ValueTask<UpdatesGrpcResponse>(session.HandleDataToSync(dataToSync, MaxPayloadSize));
+                : new ValueTask<UpdatesGrpcResponse>(session.HandleDataToSync(dataToSync, _settings.MaxPayloadSize));
         }
 
         public IAsyncEnumerable<DbRowGrpcModel> DownloadPartitionAsync(DownloadPartitionGrpcRequest request, CancellationToken token = default)
         {
-            var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
-            if (session == null)
-                throw GetSessionExpiredException(request.ConnectionId);
-            
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var session = _sessionsList.GetSession(request.ConnectionId);
 
-            if (table == null)
-                throw new Exception($"Table {request.TableName} is not found");
+            var table = _dbTablesList.GetTable(request.TableName);
             
             var rows = table.LockWithWriteAccess<IReadOnlyList<DbRowGrpcModel>>(writeAccess =>
             {
@@ -105,9 +96,7 @@ namespace MyNoSqlGrpc.Server.Grpc
 
         public IAsyncEnumerable<DbRowGrpcModel> SyncRowsAsync(SyncRowsGrpcRequest request, CancellationToken token = default)
         {
-            var session = ServiceLocator.MyNoSqlReaderSessionsList.TryGetSession(request.ConnectionId);
-            if (session == null)
-                throw GetSessionExpiredException(request.ConnectionId);
+            var session = _sessionsList.GetSession(request.ConnectionId);
             
             var dbRows = session.RowsToSync.Get(request.SnapshotId);
 

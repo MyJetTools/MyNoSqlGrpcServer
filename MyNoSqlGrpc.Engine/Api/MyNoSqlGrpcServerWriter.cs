@@ -1,24 +1,39 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AsyncAwaitUtils;
-using MyNoSqlGrpc.Server.Services;
+using MyNoSqlGrpc.Engine.Db;
+using MyNoSqlGrpc.Engine.ServerSessions;
+using MyNoSqlGrpc.Engine.ServerSyncEvents;
 using MyNoSqlGrpcServer.GrpcContracts;
 
-namespace MyNoSqlGrpc.Server.Grpc
+namespace MyNoSqlGrpc.Engine.Api
 {
-    public class MyNoSqlGrpcServerWriterService : IMyNoSqlGrpcServerWriter
+    public class MyNoSqlGrpcServerWriter : IMyNoSqlGrpcServerWriter
     {
+        private readonly DbTablesList _dbTablesList;
+        private readonly SyncEventsPusher _syncEventsPusher;
+        private readonly SyncEventsQueue _syncEventsQueue;
 
-        public ValueTask CreateTableIfNotExistsAsync(CreateTableGrpcRequest reqContract)
+        public MyNoSqlGrpcServerWriter(DbTablesList dbTablesList, SyncEventsPusher syncEventsPusher, 
+            SyncEventsQueue syncEventsQueue)
         {
-            ServiceLocator.DbTablesList.CreateIfNotExists(reqContract.TableName.ToLower());
+            Console.WriteLine("Creating MyNoSqlGrpcServerWriter");
+            _dbTablesList = dbTablesList;
+            _syncEventsPusher = syncEventsPusher;
+            _syncEventsQueue = syncEventsQueue;
+        }
+
+       public ValueTask CreateTableIfNotExistsAsync(CreateTableGrpcRequest reqContract)
+        {
+            _dbTablesList.CreateIfNotExists(reqContract.TableName.ToLower());
             return new ValueTask();
         }
 
         public ValueTask<GrpcResponse> InsertAsync(RowWithTableNameGrpcRequest request)
         {
-            var dbTable = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var dbTable = _dbTablesList.TryGetTable(request.TableName);
 
             var result = new GrpcResponse
             {
@@ -34,19 +49,19 @@ namespace MyNoSqlGrpc.Server.Grpc
                     var insertResult = dbPartition.Insert(request.DbRow);
 
                     if (insertResult)
-                        ServiceLocator.SyncEventsQueue.EnqueueDbRowChange(dbTable, request.DbRow);
+                        _syncEventsQueue.EnqueueDbRowChange(dbTable, request.DbRow);
                     else
                         result.Status = GrpcResultStatus.RecordAlreadyExists;
                 });
 
-            ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+            _syncEventsPusher.PushEventsToReaders();
             
             return new ValueTask<GrpcResponse>(result);
         }
 
         public ValueTask<GrpcResponse> InsertOrReplaceAsync(RowWithTableNameGrpcRequest request)
         {
-            var dbTable = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var dbTable = _dbTablesList.TryGetTable(request.TableName);
 
             var result = new GrpcResponse
             {
@@ -60,10 +75,10 @@ namespace MyNoSqlGrpc.Server.Grpc
                 {
                     var dbPartition = writeAccess.GetOrCreatePartition(request.DbRow.PartitionKey);
                     dbPartition.InsertOrReplace(request.DbRow);
-                    ServiceLocator.SyncEventsQueue.EnqueueDbRowChange(dbTable, request.DbRow);
+                    _syncEventsQueue.EnqueueDbRowChange(dbTable, request.DbRow);
                 });
 
-            ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+            _syncEventsPusher.PushEventsToReaders();
             return new ValueTask<GrpcResponse>(result);
         }
 
@@ -71,7 +86,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         {
             var result = new GrpcResponse();
 
-            var dbTable =  ServiceLocator.DbTablesList.TryGetTable(dbRows.TableName);
+            var dbTable =  _dbTablesList.TryGetTable(dbRows.TableName);
 
             if (dbTable == null)
             {
@@ -93,12 +108,12 @@ namespace MyNoSqlGrpc.Server.Grpc
                     
                     partition.InsertOrReplace(dbRowsByPartition);
                     
-                    ServiceLocator.SyncEventsQueue.EnqueueDbRowsChange(dbTable, partitionKey, dbRowsByPartition);
+                    _syncEventsQueue.EnqueueDbRowsChange(dbTable, partitionKey, dbRowsByPartition);
                 }
                 
             });
 
-            ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+            _syncEventsPusher.PushEventsToReaders();
             
             result.Status = GrpcResultStatus.Ok;
             return new ValueTask<GrpcResponse>(result);
@@ -107,7 +122,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponseDbRow> UpdateAsync(RowWithTableNameGrpcRequest request)
         {
             var result = new GrpcResponseDbRow();
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var table = _dbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {
@@ -139,12 +154,12 @@ namespace MyNoSqlGrpc.Server.Grpc
                 }
 
                 partition.InsertOrReplace(request.DbRow);
-                ServiceLocator.SyncEventsQueue.EnqueueDbRowChange(table, request.DbRow);
+                _syncEventsQueue.EnqueueDbRowChange(table, request.DbRow);
 
             });
 
             if (result.Status == GrpcResultStatus.Ok)
-                ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+                _syncEventsPusher.PushEventsToReaders();
 
             return new ValueTask<GrpcResponseDbRow>(result);
 
@@ -156,7 +171,7 @@ namespace MyNoSqlGrpc.Server.Grpc
 
             foreach (var groupByTable in groupsByTable)
             {
-                var table = ServiceLocator.DbTablesList.TryGetTable(groupByTable.Key);
+                var table = _dbTablesList.TryGetTable(groupByTable.Key);
                 
                 if (table == null)
                     continue;
@@ -175,20 +190,20 @@ namespace MyNoSqlGrpc.Server.Grpc
                         {
                             var deletedRow = partition.TryDelete(entityToDelete.RowKey);
                             if (deletedRow != null)
-                                ServiceLocator.SyncEventsQueue.EnqueueDbRowDelete(table, deletedRow);
+                                _syncEventsQueue.EnqueueDbRowDelete(table, deletedRow);
                         }
 
                     });  
                 }
                 
-                ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+                _syncEventsPusher.PushEventsToReaders();
             }
             
         }
 
         public IAsyncEnumerable<DbRowGrpcModel> GetAsync(GetDbRowsGrpcRequest request)
         {
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var table = _dbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
                 return AsyncEnumerableResult<DbRowGrpcModel>.Empty();
@@ -211,7 +226,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponse> GcPartitionAsync(GcPartitionGrpcRequest request)
         {
             var result = new GrpcResponse();
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var table = _dbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {
@@ -235,11 +250,11 @@ namespace MyNoSqlGrpc.Server.Grpc
                     return;
 
                 foreach (var dbRow in partition.Gc(request.MaxRowsAmount))
-                    ServiceLocator.SyncEventsQueue.EnqueueDbRowDelete(table, dbRow);
+                    _syncEventsQueue.EnqueueDbRowDelete(table, dbRow);
             });
             
             
-            ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+            _syncEventsPusher.PushEventsToReaders();
 
             return new ValueTask<GrpcResponse>(result);
         }
@@ -247,7 +262,7 @@ namespace MyNoSqlGrpc.Server.Grpc
         public ValueTask<GrpcResponse> GcTableAsync(GcTableGrpcRequest request)
         {
             var result = new GrpcResponse();
-            var table = ServiceLocator.DbTablesList.TryGetTable(request.TableName);
+            var table = _dbTablesList.TryGetTable(request.TableName);
 
             if (table == null)
             {
@@ -271,17 +286,16 @@ namespace MyNoSqlGrpc.Server.Grpc
                 while (writeAccess.PartitionsCount() > request.MaxPartitionsAmount)
                 {
                     writeAccess.RemovePartition(itemsByLastAccess[i].PartitionKey);
-                    ServiceLocator.SyncEventsQueue.EnqueueSyncPartition(table, itemsByLastAccess[i]);
+                    _syncEventsQueue.EnqueueSyncPartition(table, itemsByLastAccess[i]);
                     i++;
                 }
 
 
             });
             
-            ServiceLocator.SyncEventsPusher.PushEventsToReaders();
+            _syncEventsPusher.PushEventsToReaders();
 
             return new ValueTask<GrpcResponse>();
         }
-        
     }
 }

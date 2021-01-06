@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyNoSqlGrpc.Engine;
-using MyNoSqlGrpc.Server.Grpc;
 using ProtoBuf.Grpc.Server;
 
 namespace MyNoSqlGrpc.Server
@@ -16,17 +15,15 @@ namespace MyNoSqlGrpc.Server
         {
 
             var settings = MySettingsReader.SettingsReader.GetSettings<SettingsModel>(".mynosqlgrpcservser");
-            MyNoSqlGrpcServerReaderService.MaxPayloadSize = settings.MaxPayloadSize;
-            
+
             services.AddCodeFirstGrpc();
             services.AddApplicationInsightsTelemetry();
             services.AddControllers();
-
             services.RegisterEngineServices(settings);
             
             services.AddSwaggerDocument(o => { o.Title = "MyNoSqlGrpcServer"; });
             
-            ServiceLocator.Init(services);
+            BackgroundJobsServiceLocator.Init(services);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -48,11 +45,11 @@ namespace MyNoSqlGrpc.Server
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapGrpcService<Grpc.MyNoSqlGrpcServerWriterService>();
-                endpoints.MapGrpcService<Grpc.MyNoSqlGrpcServerReaderService>();
+                endpoints.MapGrpcService<Engine.Api.MyNoSqlGrpcServerWriter>();
+                endpoints.MapGrpcService<Engine.Api.MyNoSqlGrpcServerReader>();
             });
             
-            ServiceLocator.Start();
+            BackgroundJobsServiceLocator.Start();
         }
     }
 }

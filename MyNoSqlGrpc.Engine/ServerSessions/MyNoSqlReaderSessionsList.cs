@@ -16,9 +16,9 @@ namespace MyNoSqlGrpc.Engine.ServerSessions
 
         private readonly ReaderWriterLockSlim _lockSlim = new ();
 
-        public MyNoSqlReaderSessionsList(TimeSpan expirationSessionTimeout)
+        public MyNoSqlReaderSessionsList(IMyNoSqlGrpcEngineSettings settings)
         {
-            _expirationSessionTimeout = expirationSessionTimeout;
+            _expirationSessionTimeout = settings.SessionExpiration;
         }
 
 

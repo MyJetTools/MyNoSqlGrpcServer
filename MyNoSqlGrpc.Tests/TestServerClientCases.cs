@@ -1,7 +1,8 @@
 using System.Threading.Tasks;
 using AsyncAwaitUtils;
-using MyNoSqlGrpc.Server.Grpc;
+using Microsoft.Extensions.DependencyInjection;
 using MyNoSqlGrpc.Writer;
+using MyNoSqlGrpcServer.GrpcContracts;
 using NUnit.Framework;
 
 namespace MyNoSqlGrpc.Tests
@@ -21,7 +22,9 @@ namespace MyNoSqlGrpc.Tests
         public async Task TestOneInsertOneGet()
         {
 
-            var server = new MyNoSqlGrpcServerWriterService();
+            var services = TestUtils.CreateTestServiceCollection();
+
+            var server = services.GetRequiredService<IMyNoSqlGrpcServerWriter>();
             
             var writer = new MyNoSqlGrpcWriter<TestEntity>(server, "test").PlugJsonSerializer();
 
@@ -46,7 +49,9 @@ namespace MyNoSqlGrpc.Tests
         public async Task TestOneInsertGetAsList()
         {
 
-            var server = new MyNoSqlGrpcServerWriterService();
+            var services = TestUtils.CreateTestServiceCollection();
+
+            var server = services.GetRequiredService<IMyNoSqlGrpcServerWriter>();
             
             var writer = new MyNoSqlGrpcWriter<TestEntity>(server, "test").PlugJsonSerializer();
 
